@@ -3,7 +3,8 @@ package AllMultiplicationKinds
 import (
 	"errors"
 	"math"
-	"unsafe"
+	"runtime"
+	"sync"
 )
 
 func NaiveMultiplication(matrix1, matrix2 [][]float32)([][]float32, error) {
@@ -103,52 +104,39 @@ func MultiplicationWithTranspose(matrix1, matrix2 [][]float32)([][]float32, erro
 	}
 	return resultMatrix,nil
 }
-var (
-	sumFloat64 func([]float64) float64
-)
 
-func SumFloat64(v []float64) float64 {
-	return sumFloat64(v)
-}
-
-func sum_float64_go(buf []float64) float64 {
-	acc := float64(0)
-	for i := range buf {
-		acc += buf[i]
+func AsyncMultiplicationWithTranspose(matrix1, matrix2 [][]float32)([][]float32, error) {
+	if len(matrix1[0]) != len(matrix2) {
+		return nil, errors.New("width of matrix1 is not equal to height og matrix2")
 	}
-	return acc
-}
 
-func sum_float64_go_unroll4(buf []float64) float64 {
-	var (
-		acc0, acc1, acc2, acc3 float64
-	)
+	resultHeight := len(matrix1)
+	resultWidth := len(matrix2[0])
+	matrix1Width := len(matrix2)
 
-	for i := 0; i < len(buf); i += 4 {
-		bb := (*[4]float64)(unsafe.Pointer(&buf[i]))
-		acc0 += bb[0]
-		acc1 += bb[1]
-		acc2 += bb[2]
-		acc3 += bb[3]
+	matrix2Transposed := transpose(matrix2)
+	resultMatrix := make([][]float32, resultHeight)
+
+	goroutines := runtime.NumCPU()
+	linesPerRoutine := int(math.Ceil(float64(resultHeight) / float64(goroutines)))
+	var wg sync.WaitGroup
+
+	for i2 :=0; i2 < resultHeight; i2 += linesPerRoutine {
+		iMax2 := int(math.Min(float64(resultHeight),float64(i2+linesPerRoutine)))
+		wg.Add(1)
+		go func(i, iMax int){
+			defer wg.Done()
+			for ; i < iMax; i++ {
+				resultMatrix[i] = make([]float32, resultWidth)
+				for j := 0; j < resultWidth; j++ {
+					for k := 0; k < matrix1Width; k++ {
+						resultMatrix[i][j] += matrix1[i][k] * matrix2Transposed[j][k]
+					}
+				}
+			}
+		}(i2,iMax2)
 	}
-	return acc0 + acc1 + acc2 + acc3
-}
 
-func sum_float64_go_unroll8(buf []float64) float64 {
-	var (
-		acc0, acc1, acc2, acc3 float64
-		acc4, acc5, acc6, acc7 float64
-	)
-	for i := 0; i < len(buf); i += 8 {
-		bb := (*[8]float64)(unsafe.Pointer(&buf[i]))
-		acc0 += bb[0]
-		acc1 += bb[1]
-		acc2 += bb[2]
-		acc3 += bb[3]
-		acc4 += bb[4]
-		acc5 += bb[5]
-		acc6 += bb[6]
-		acc7 += bb[7]
-	}
-	return acc0 + acc1 + acc2 + acc3 + acc4 + acc5 + acc6 + acc7
+	wg.Wait()
+	return resultMatrix,nil
 }
