@@ -170,19 +170,3 @@ func BenchmarkAsyncMultiplicationWithTranspose(b *testing.B) {
 	b.ResetTimer()
 	_,_ = AsyncMultiplicationWithTranspose(matrix1,matrix2)
 }
-
-func BenchmarkAsyncMultiplicationWithTranspose2(b *testing.B) {
-	matrix1 := generateRandomMatrix(N,M)
-	matrix2 := generateRandomMatrix(M,N)
-
-	b.ResetTimer()
-	_,_ = AsyncMultiplicationWithTranspose2(matrix1,matrix2)
-}
-
-func BenchmarkAsyncMultiplicationWithTranspose3(b *testing.B) {
-	matrix1 := generateRandomMatrix(N,M)
-	matrix2 := generateRandomMatrix(M,N)
-
-	b.ResetTimer()
-	_,_ = AsyncMultiplicationWithTranspose3(matrix1,matrix2)
-}
