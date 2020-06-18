@@ -1,4 +1,4 @@
-package AllMultiplicationKinds
+package main
 
 import (
 	"math/rand"
@@ -140,32 +140,32 @@ func generateRandomMatrix(n,m int)[][]float32 {
 }
 
 func BenchmarkNaiveMultiplication(b *testing.B) {
-	matrix1 := generateRandomMatrix(N,M)
-	matrix2 := generateRandomMatrix(M,N)
+	matrix1 := generateRandomMatrix(N, M)
+	matrix2 := generateRandomMatrix(M, N)
 
 	b.ResetTimer()
 	_,_ = NaiveMultiplication(matrix1,matrix2)
 }
 
 func BenchmarkBlocksMultiplication(b *testing.B) {
-	matrix1 := generateRandomMatrix(N,M)
-	matrix2 := generateRandomMatrix(M,N)
+	matrix1 := generateRandomMatrix(N, M)
+	matrix2 := generateRandomMatrix(M, N)
 
 	b.ResetTimer()
 	_,_ = BlocksMultiplication(matrix1,matrix2,256,256,256)
 }
 
 func BenchmarkMultiplicationWithTranspose(b *testing.B) {
-	matrix1 := generateRandomMatrix(N,M)
-	matrix2 := generateRandomMatrix(M,N)
+	matrix1 := generateRandomMatrix(N, M)
+	matrix2 := generateRandomMatrix(M, N)
 
 	b.ResetTimer()
 	_,_ = MultiplicationWithTranspose(matrix1,matrix2)
 }
 
 func BenchmarkAsyncMultiplicationWithTranspose(b *testing.B) {
-	matrix1 := generateRandomMatrix(N,M)
-	matrix2 := generateRandomMatrix(M,N)
+	matrix1 := generateRandomMatrix(N, M)
+	matrix2 := generateRandomMatrix(M, N)
 
 	b.ResetTimer()
 	_,_ = AsyncMultiplicationWithTranspose(matrix1,matrix2)

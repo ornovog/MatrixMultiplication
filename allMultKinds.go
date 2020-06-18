@@ -1,4 +1,4 @@
-package AllMultiplicationKinds
+package main
 
 import (
 	"errors"
