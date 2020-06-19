@@ -2,12 +2,13 @@ package main
 
 import (
 	"errors"
+	"github.com/slimsag/rand/simd"
 	"math"
 	"runtime"
 	"sync"
 )
 
-func NaiveMultiplication(matrix1, matrix2 [][]float32)([][]float32, error) {
+func NaiveMultiplication(matrix1, matrix2 [][]float64)([][]float64, error) {
 
 	if len(matrix1[0]) != len(matrix2){
 		return nil, errors.New("width of matrix1 is not equal to height og matrix2")
@@ -17,10 +18,10 @@ func NaiveMultiplication(matrix1, matrix2 [][]float32)([][]float32, error) {
 	resultWidth :=len(matrix2[0])
 	matrix1Width := len(matrix2)
 
-	resultMatrix := make([][]float32,resultHeight)
+	resultMatrix := make([][]float64,resultHeight)
 
 	for i:=0; i<resultHeight; i++{
-		resultMatrix[i] = make([]float32,resultWidth)
+		resultMatrix[i] = make([]float64,resultWidth)
 		for j:=0; j<resultWidth; j++{
 			for k:=0; k<matrix1Width; k++{
 				resultMatrix[i][j] += matrix1[i][k]*matrix2[k][j]
@@ -30,7 +31,7 @@ func NaiveMultiplication(matrix1, matrix2 [][]float32)([][]float32, error) {
 	return  resultMatrix,nil
 }
 
-func BlocksMultiplication(matrix1, matrix2 [][]float32, blockHeight, blockWidth, kChunkSize int)([][]float32, error) {
+func BlocksMultiplication(matrix1, matrix2 [][]float64, blockHeight, blockWidth, kChunkSize int)([][]float64, error) {
 
 	if len(matrix1[0]) != len(matrix2){
 		return nil, errors.New("width of matrix1 is not equal to height og matrix2")
@@ -40,9 +41,9 @@ func BlocksMultiplication(matrix1, matrix2 [][]float32, blockHeight, blockWidth,
 	resultWidth :=len(matrix2[0])
 	matrix1Width := len(matrix2)
 
-	resultMatrix := make([][]float32,resultHeight)
+	resultMatrix := make([][]float64,resultHeight)
 	for i:=0; i< resultHeight; i++{
-		resultMatrix[i] = make([]float32, resultWidth)
+		resultMatrix[i] = make([]float64, resultWidth)
 	}
 
 	for i2:=0 ; i2<resultHeight; i2+=blockHeight {
@@ -65,14 +66,14 @@ func BlocksMultiplication(matrix1, matrix2 [][]float32, blockHeight, blockWidth,
 	return  resultMatrix,nil
 }
 
-func transpose(matrix [][]float32)[][]float32{
+func Transpose(matrix [][]float64)[][]float64{
 	resultHeight :=len(matrix[0])
 	resultWeight :=len(matrix)
 
-	resultMatrix := make([][]float32,resultHeight)
+	resultMatrix := make([][]float64,resultHeight)
 
 	for i:=0; i<resultHeight; i++{
-		resultMatrix[i] =make([]float32,resultWeight)
+		resultMatrix[i] =make([]float64,resultWeight)
 		for j:=0; j<resultWeight; j++{
 			resultMatrix[i][j] = matrix[j][i]
 		}
@@ -81,7 +82,24 @@ func transpose(matrix [][]float32)[][]float32{
 	return resultMatrix
 }
 
-func MultiplicationWithTranspose(matrix1, matrix2 [][]float32)([][]float32, error) {
+func PackForSIMD(matrix [][]float64)[][][4]float64{
+	resultHeight :=len(matrix)
+	resultWeight :=len(matrix[0])/4
+
+	resultMatrix := make([][][4]float64,resultHeight)
+
+	for i:=0; i<resultHeight; i++{
+		resultMatrix[i] =make([][4]float64,resultWeight)
+		for j:=0; j<resultWeight; j++{
+			index := j*4
+			resultMatrix[i][j] = simd.Vec64{matrix[i][index],matrix[i][index+1],matrix[i][index+2],matrix[i][index+3]}
+		}
+	}
+
+	return resultMatrix
+}
+
+func MultiplicationWithTranspose(matrix1, matrix2 [][]float64)([][]float64, error) {
 
 	if len(matrix1[0]) != len(matrix2) {
 		return nil, errors.New("width of matrix1 is not equal to height og matrix2")
@@ -91,11 +109,11 @@ func MultiplicationWithTranspose(matrix1, matrix2 [][]float32)([][]float32, erro
 	resultWidth := len(matrix2[0])
 	matrix1Width := len(matrix2)
 
-	matrix2Transposed := transpose(matrix2)
-	resultMatrix := make([][]float32, resultHeight)
+	matrix2Transposed := Transpose(matrix2)
+	resultMatrix := make([][]float64, resultHeight)
 
 	for i := 0; i < resultHeight; i++ {
-		resultMatrix[i] = make([]float32, resultWidth)
+		resultMatrix[i] = make([]float64, resultWidth)
 		for j := 0; j < resultWidth; j++ {
 			for k := 0; k < matrix1Width; k++ {
 				resultMatrix[i][j] += matrix1[i][k] * matrix2Transposed[j][k]
@@ -105,7 +123,7 @@ func MultiplicationWithTranspose(matrix1, matrix2 [][]float32)([][]float32, erro
 	return resultMatrix,nil
 }
 
-func AsyncMultiplicationWithTranspose(matrix1, matrix2 [][]float32)([][]float32, error) {
+func AsyncMultiplicationWithTranspose(matrix1, matrix2 [][]float64)([][]float64, error) {
 	if len(matrix1[0]) != len(matrix2) {
 		return nil, errors.New("width of matrix1 is not equal to height og matrix2")
 	}
@@ -114,8 +132,8 @@ func AsyncMultiplicationWithTranspose(matrix1, matrix2 [][]float32)([][]float32,
 	resultWidth := len(matrix2[0])
 	matrix1Width := len(matrix2)
 
-	matrix2Transposed := transpose(matrix2)
-	resultMatrix := make([][]float32, resultHeight)
+	matrix2Transposed := Transpose(matrix2)
+	resultMatrix := make([][]float64, resultHeight)
 
 	goroutines := runtime.NumCPU()
 	linesPerRoutine := int(math.Ceil(float64(resultHeight) / float64(goroutines)))
@@ -127,7 +145,7 @@ func AsyncMultiplicationWithTranspose(matrix1, matrix2 [][]float32)([][]float32,
 		go func(i, iMax int){
 			defer wg.Done()
 			for ; i < iMax; i++ {
-				resultMatrix[i] = make([]float32, resultWidth)
+				resultMatrix[i] = make([]float64, resultWidth)
 				for j := 0; j < resultWidth; j++ {
 					for k := 0; k < matrix1Width; k++ {
 						resultMatrix[i][j] += matrix1[i][k] * matrix2Transposed[j][k]
@@ -138,5 +156,56 @@ func AsyncMultiplicationWithTranspose(matrix1, matrix2 [][]float32)([][]float32,
 	}
 
 	wg.Wait()
+	return resultMatrix,nil
+}
+
+func SIMDMultiplication(matrix1, matrix2 [][]float64)([][]float64, error) {
+	if len(matrix1[0]) != len(matrix2) {
+		return nil, errors.New("width of matrix1 is not equal to height og matrix2")
+	}
+
+	resultHeight := len(matrix1)
+	resultWidth := len(matrix2[0])
+	matrix1Width := len(matrix2)/4
+
+	matrix1Simd :=PackForSIMD(matrix1)
+	matrix2TransposedSimd := PackForSIMD(Transpose(matrix2))
+
+	resultMatrix := make([][]float64, resultHeight)
+
+	for i := 0; i < resultHeight; i++ {
+		resultMatrix[i] = make([]float64, resultWidth)
+		for j := 0; j < resultWidth; j++ {
+			for k:=0; k < matrix1Width; k++{
+				mulArr := simd.Vec64Mul(matrix1Simd[i][k],matrix2TransposedSimd[j][k])
+				resultMatrix[i][j] += mulArr[0]+mulArr[1]+mulArr[2]+mulArr[3]
+			}
+		}
+	}
+
+	return resultMatrix,nil
+}
+
+func SIMDMultiplication2(matrix1, matrix2 [][][4]float64)([][]float64, error) {
+	if len(matrix1[0]) != len(matrix2) {
+		return nil, errors.New("width of matrix1 is not equal to height og matrix2")
+	}
+
+	resultHeight := len(matrix1)
+	resultWidth := len(matrix2)*4
+	matrix1Width := len(matrix2[0])
+
+	resultMatrix := make([][]float64, resultHeight)
+
+	for i := 0; i < resultHeight; i++ {
+		resultMatrix[i] = make([]float64, resultWidth)
+		for j := 0; j < resultWidth; j++ {
+			for k:=0; k < matrix1Width; k++{
+				mulArr := simd.Vec64Mul(matrix1[i][k],matrix2[j][k])
+				resultMatrix[i][j] += mulArr[0]+mulArr[1]+mulArr[2]+mulArr[3]
+			}
+		}
+	}
+
 	return resultMatrix,nil
 }
